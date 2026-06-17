@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIFA World Cup 2026 — Group Stage</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f3;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --border-strong: rgba(0,0,0,0.2);
+    --text: #1a1a1a;
+    --text-muted: #666;
+    --text-hint: #999;
+    --green-bg: #c0dd97; --green-text: #27500a;
+    --amber-bg: #fac775; --amber-text: #633806;
+    --red-bg: #f7c1c1; --red-text: #791f1f;
+    --draw-bg: #e6f1fb; --draw-text: #0c447c;
+    --diag-bg: #f1efe8;
+    --unplayed-bg: #fafafa;
+    --radius: 10px;
+    --cell: 38px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a; --surface: #242424; --border: rgba(255,255,255,0.1);
+      --border-strong: rgba(255,255,255,0.2); --text: #f0f0f0; --text-muted: #aaa; --text-hint: #666;
+      --green-bg: #27500a; --green-text: #c0dd97;
+      --amber-bg: #633806; --amber-text: #fac775;
+      --red-bg: #791f1f; --red-text: #f7c1c1;
+      --draw-bg: #0c447c; --draw-text: #b5d4f4;
+      --diag-bg: #2c2c2a; --unplayed-bg: #1e1e1e;
+    }
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px 16px; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  .subtitle a { color: var(--text-muted); }
+
+  /* ── Status bar ── */
+  #status { font-size: 12px; color: var(--text-hint); margin-bottom: 20px; min-height: 16px; }
+
+  /* ── Legend ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; font-size: 12px; color: var(--text-muted); align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+  /* ── Groups grid ── */
+  .groups-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 700px) { .groups-grid { grid-template-columns: 1fr; } }
+
+  /* ── Group card ── */
+  .group-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: visible; }
+  .group-title { font-size: 12px; font-weight: 500; color: var(--text-muted); padding: 8px 10px; border-bottom: 0.5px solid var(--border); background: var(--diag-bg); border-radius: var(--radius) var(--radius) 0 0; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  /* ── Matrix table ── */
+  .matrix-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { border: 0.5px solid var(--border); text-align: center; height: var(--cell); width: var(--cell); min-width: var(--cell); padding: 0; }
+  th.team-col, td.team-col { text-align: left; padding: 0 6px; width: auto; min-width: 80px; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  th.rank-col, td.rank-col { font-size: 10px; color: var(--text-hint); background: var(--diag-bg); width: 18px; min-width: 18px; }
+  th.header-cell { font-size: 18px; background: var(--diag-bg); height: 36px; cursor: default; }
+  th.header-cell[title]:hover::after { content: attr(title); position: absolute; background: var(--surface); border: 0.5px solid var(--border-strong); border-radius: 6px; padding: 4px 8px; font-size: 11px; white-space: nowrap; z-index: 10; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); pointer-events: none; }
+  th.header-cell { position: relative; }
+
+  /* ── Cells ── */
+  td.cell-diag { background: var(--diag-bg); cursor: pointer; position: relative; }
+  td.cell-match { cursor: default; position: relative; }
+  td.cell-played-win { background: var(--green-bg); }
+  td.cell-played-draw { background: var(--draw-bg); }
+  td.cell-played-loss { background: var(--red-bg); }
+  td.cell-unplayed { background: var(--unplayed-bg); color: var(--text-hint); font-size: 10px; }
+
+  .cell-inner { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative; }
+  .pts-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-size: 13px; font-weight: 500; }
+  .pts-3 { background: var(--green-bg); color: var(--green-text); }
+  .pts-1 { background: var(--amber-bg); color: var(--amber-text); }
+  .pts-0 { background: var(--red-bg); color: var(--red-text); }
+  .pts-none { background: var(--diag-bg); color: var(--text-hint); font-size: 11px; }
+  .flag-emoji { font-size: 18px; line-height: 1; }
+
+  /* ── Tooltip ── */
+  .tooltip { display: none; position: absolute; z-index: 999; background: var(--surface); border: 0.5px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; font-size: 11px; white-space: nowrap; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); min-width: 150px; pointer-events: none; }
+  .cell-inner:hover .tooltip { display: block; }
+  .tt-team { font-weight: 500; font-size: 12px; margin-bottom: 6px; padding-bottom: 5px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .tt-row { display: flex; justify-content: space-between; gap: 16px; line-height: 1.9; }
+  .tt-label { color: var(--text-muted); }
+  .tt-val { font-weight: 500; color: var(--text); }
+  .tt-score { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+
+  /* ── Loading/error ── */
+  .loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+  .error { color: #e24b4a; font-size: 13px; padding: 12px; background: var(--red-bg); border-radius: 8px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<h1>FIFA World Cup 2026 — Group Stage</h1>
+<p class="subtitle">Data from <a id="sheet-link" href="#" target="_blank">Google Sheets</a> · updated automatically via Wikipedia</p>
+<div id="status">Loading scores…</div>
+
+<div class="legend">
+  <span class="legend-item"><span class="legend-dot" style="background:var(--green-bg)"></span> Win (3 pts)</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--draw-bg)"></span> Draw (1 pt)</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--red-bg)"></span> Loss (0 pts)</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--diag-bg); border:0.5px solid var(--border)"></span> Standings diagonal</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--unplayed-bg); border:0.5px solid var(--border)"></span> Unplayed</span>
+</div>
+
+<div id="root"><div class="loading">Fetching data…</div></div>
+
+<script>
+// ── CONFIG — replace with your published Google Sheet CSV URL ──
+const SHEET_CSV_URL = "YOUR_GOOGLE_SHEET_CSV_URL_HERE";
+// How to get this URL:
+//   1. File → Share → Publish to web
+//   2. Choose your sheet tab, select CSV format
+//   3. Click Publish, copy the URL and paste it above
+
+document.getElementById("sheet-link").href = SHEET_CSV_URL;
+
+// ── Parse CSV ──────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = [];
+    let cur = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"' && !inQ) { inQ = true; continue; }
+      if (c === '"' && inQ) { inQ = false; continue; }
+      if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ""; continue; }
+      cur += c;
+    }
+    vals.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] || "");
+    return obj;
+  });
+}
+
+// ── Build viz ─────────────────────────────────────────────
+function render(rows) {
+  // Group rows by Group
+  const groups = {};
+  rows.forEach(r => {
+    if (!groups[r.Group]) groups[r.Group] = [];
+    groups[r.Group].push(r);
+  });
+
+  const groupOrder = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+  const root = document.getElementById("root");
+  root.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "groups-grid";
+
+  groupOrder.forEach(g => {
+    if (!groups[g]) return;
+    const gRows = groups[g];
+
+    // Get unique teams in rank order
+    const teamMap = {};
+    gRows.forEach(r => {
+      if (!teamMap[r["Row Team"]]) {
+        teamMap[r["Row Team"]] = {
+          name: r["Row Team"], flag: r["Row Flag"], rank: parseInt(r["Row Rank"]),
+          mp: r["Row MP"], w: r["Row W"], d: r["Row D"], l: r["Row L"],
+          gf: r["Row GF"], ga: r["Row GA"], gd: r["Row GD"], pts: r["Row Pts"],
+        };
+      }
+    });
+    const teams = Object.values(teamMap).sort((a,b) => a.rank - b.rank);
+
+    // Build lookup for cells
+    const cellLookup = {};
+    gRows.forEach(r => {
+      cellLookup[r["Row Team"] + "|||" + r["Col Team"]] = r;
+    });
+
+    // Card
+    const card = document.createElement("div");
+    card.className = "group-card";
+    card.innerHTML = `<div class="group-title">Group ${g}</div>`;
+
+    const wrap = document.createElement("div");
+    wrap.className = "matrix-wrap";
+
+    const table = document.createElement("table");
+
+    // Header row
+    const thead = document.createElement("thead");
+    const hrow = document.createElement("tr");
+    hrow.innerHTML = `<th class="rank-col"></th><th class="team-col" style="background:var(--diag-bg)"></th>`;
+    teams.forEach((t, i) => {
+      hrow.innerHTML += `<th class="header-cell" title="${t.name}">${t.flag}</th>`;
+    });
+    thead.appendChild(hrow);
+    table.appendChild(thead);
+
+    // Body rows
+    const tbody = document.createElement("tbody");
+    teams.forEach((rowTeam, ri) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="rank-col">${rowTeam.rank}</td>
+        <td class="team-col" title="${rowTeam.name}">${rowTeam.flag} ${rowTeam.name}</td>`;
+
+      teams.forEach((colTeam, ci) => {
+        const cell = cellLookup[rowTeam.name + "|||" + colTeam.name];
+        const td = document.createElement("td");
+
+        if (!cell || cell["Cell Type"] === "Diagonal") {
+          // Diagonal — show points badge with standings tooltip
+          td.className = "cell-diag";
+          const pts = parseInt(cell ? cell["Row Pts"] : 0);
+          const ptsClass = cell && cell["Row MP"] === "0" ? "pts-none" :
+                           pts === 3 ? "pts-3" : pts === 1 ? "pts-1" : "pts-0";
+          const ptsLabel = cell && cell["Row MP"] === "0" ? "–" : String(pts);
+          const gd = cell ? (parseInt(cell["Row GD"]) >= 0 ? "+" : "") + cell["Row GD"] : "–";
+
+          td.innerHTML = `<div class="cell-inner">
+            <span class="pts-badge ${ptsClass}">${ptsLabel}</span>
+            <div class="tooltip">
+              <div class="tt-team">${rowTeam.flag} ${rowTeam.name}</div>
+              <div class="tt-row"><span class="tt-label">Played</span><span class="tt-val">${cell ? cell["Row MP"] : 0}</span></div>
+              <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-val">${cell ? cell["Row W"] : 0}</span></div>
+              <div class="tt-row"><span class="tt-label">Draws</span><span class="tt-val">${cell ? cell["Row D"] : 0}</span></div>
+              <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-val">${cell ? cell["Row L"] : 0}</span></div>
+              <div class="tt-row"><span class="tt-label">GF / GA</span><span class="tt-val">${cell ? cell["Row GF"] : 0} / ${cell ? cell["Row GA"] : 0}</span></div>
+              <div class="tt-row"><span class="tt-label">GD</span><span class="tt-val">${gd}</span></div>
+              <div class="tt-row"><span class="tt-label">Points</span><span class="tt-val">${ptsLabel}</span></div>
+            </div>
+          </div>`;
+
+        } else if (cell["Status"] === "Played") {
+          const isWin = cell["Winner"] === rowTeam.name;
+          const isDraw = cell["Winner"] === "Draw";
+          const isLoss = !isWin && !isDraw;
+          td.className = "cell-match " + (isDraw ? "cell-played-draw" : isWin ? "cell-played-win" : "cell-played-loss");
+          td.innerHTML = `<div class="cell-inner">
+            <span class="flag-emoji">${cell["Winner Flag"]}</span>
+            <div class="tooltip">
+              <div class="tt-score">${rowTeam.flag} ${rowTeam.name} vs ${colTeam.flag} ${colTeam.name}</div>
+              <div class="tt-row"><span class="tt-label">Score</span><span class="tt-val">${cell["Score"]}</span></div>
+              <div class="tt-row"><span class="tt-label">Result</span><span class="tt-val">${cell["Winner Flag"]} ${cell["Winner"]}</span></div>
+            </div>
+          </div>`;
+
+        } else {
+          td.className = "cell-match cell-unplayed";
+          td.innerHTML = `<div class="cell-inner" style="color:var(--text-hint); font-size:11px;">·</div>`;
+        }
+
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    card.appendChild(wrap);
+    grid.appendChild(card);
+  });
+
+  root.appendChild(grid);
+}
+
+// ── Fetch & init ───────────────────────────────────────────
+async function init() {
+  const statusEl = document.getElementById("status");
+
+  if (SHEET_CSV_URL === "YOUR_GOOGLE_SHEET_CSV_URL_HERE") {
+    statusEl.textContent = "⚠️ Add your Google Sheet CSV URL to the SHEET_CSV_URL variable at the top of the script.";
+    document.getElementById("root").innerHTML = "";
+    return;
+  }
+
+  try {
+    const res = await fetch(SHEET_CSV_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    render(rows);
+    const now = new Date().toLocaleTimeString();
+    statusEl.textContent = `Last updated: ${now} · ${rows.length} rows loaded`;
+  } catch (e) {
+    statusEl.textContent = "Error loading data: " + e.message;
+    document.getElementById("root").innerHTML = `<div class="error">Could not fetch sheet data. Make sure the Google Sheet is published as CSV and the URL is correct.<br><br>${e}</div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
